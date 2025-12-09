@@ -17,6 +17,10 @@ let isConnected = false;
 let audioRouter: AudioRouter | null = null;
 let anamClient: AnamClient | null = null;
 
+// Debug recording
+let mediaRecorder: MediaRecorder | null = null;
+let recordedChunks: Blob[] = [];
+
 interface Config {
   anamSessionToken: string;
   elevenLabsAgentId: string;
@@ -102,12 +106,29 @@ async function start() {
     await audioRouter.initialize();
 
     // Initialize Anam avatar with the audio stream
+    const audioStream = audioRouter.getMediaStream();
+    console.log("[Audio] MediaStream created:", audioStream.id);
+    console.log(
+      "[Audio] Audio tracks:",
+      audioStream.getAudioTracks().map((t) => ({
+        id: t.id,
+        label: t.label,
+        enabled: t.enabled,
+        readyState: t.readyState,
+      }))
+    );
+
+    console.log("[Anam] Creating client...");
     anamClient = createClient(config.anamSessionToken);
-    await anamClient.streamToVideoElement(
-      "anam-video",
-      audioRouter.getMediaStream()
+    await anamClient.streamToVideoElement("anam-video", audioStream);
+    console.log(
+      "[Anam] Streaming to video element, session:",
+      anamClient.getActiveSessionId()
     );
     showVideo(true);
+
+    // Debug: Record the audio stream
+    startRecording(audioStream);
 
     // Connect to ElevenLabs
     await connectElevenLabs(config.elevenLabsAgentId, {
@@ -118,6 +139,12 @@ async function start() {
       onAudio: (audio) => audioRouter?.queuePcm16(base64ToArrayBuffer(audio)),
       onUserTranscript: (text) => addMessage("user", text),
       onAgentResponse: (text) => addMessage("agent", text),
+      onInterrupt: () => {
+        console.log("[Audio] Stopping playback (interrupt)");
+        audioRouter?.stop();
+        console.log("[Anam] Interrupting persona");
+        anamClient?.interruptPersona();
+      },
       onDisconnect: () => setConnected(false),
       onError: () => showError("Connection error"),
     });
@@ -132,12 +159,45 @@ async function start() {
 
 async function stop() {
   stopElevenLabs();
+  stopRecording(); // Downloads the recorded audio
   await anamClient?.stopStreaming();
   anamClient = null;
   audioRouter?.dispose();
   audioRouter = null;
   showVideo(false);
   setConnected(false);
+}
+
+// ============================================================================
+// DEBUG: Audio Recording
+// ============================================================================
+
+function startRecording(stream: MediaStream) {
+  recordedChunks = [];
+  mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+
+  mediaRecorder.ondataavailable = (e) => {
+    if (e.data.size > 0) recordedChunks.push(e.data);
+  };
+
+  mediaRecorder.start(100); // Collect data every 100ms
+  console.log("[Debug] Recording audio stream...");
+}
+
+function stopRecording() {
+  if (!mediaRecorder || mediaRecorder.state === "inactive") return;
+
+  mediaRecorder.stop();
+  mediaRecorder.onstop = () => {
+    const blob = new Blob(recordedChunks, { type: "audio/webm" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `anam-audio-${Date.now()}.webm`;
+    a.click();
+    URL.revokeObjectURL(url);
+    console.log("[Debug] Audio recording downloaded");
+  };
 }
 
 // ============================================================================

@@ -14,17 +14,24 @@ let isInitialized = false;
 
 interface ElevenLabsMessage {
   type: string;
+  conversation_initiation_metadata_event?: {
+    conversation_id: string;
+    agent_output_audio_format: string;
+  };
   audio_event?: { audio_base_64: string };
   user_transcription_event?: { user_transcript: string };
   agent_response_event?: { agent_response: string };
   ping_event?: { event_id: number };
 }
 
+let audioChunkCount = 0;
+
 export interface ElevenLabsCallbacks {
   onReady?: () => void;
   onAudio?: (base64Audio: string) => void;
   onUserTranscript?: (text: string) => void;
   onAgentResponse?: (text: string) => void;
+  onInterrupt?: () => void;
   onDisconnect?: () => void;
   onError?: () => void;
 }
@@ -64,6 +71,8 @@ export async function connectElevenLabs(
   );
 
   websocket.onopen = async () => {
+    console.log("[11Labs] WebSocket connected");
+    audioChunkCount = 0;
     await setupMicrophone();
     callbacks.onReady?.();
   };
@@ -72,29 +81,52 @@ export async function connectElevenLabs(
     const msg: ElevenLabsMessage = JSON.parse(event.data);
 
     switch (msg.type) {
-      case "conversation_initiation_metadata":
+      case "conversation_initiation_metadata": {
         isInitialized = true;
-        console.log("[11Labs] Ready");
+        const meta = msg.conversation_initiation_metadata_event;
+        console.log("[11Labs] Session started:", {
+          conversationId: meta?.conversation_id,
+          audioFormat: meta?.agent_output_audio_format,
+        });
         break;
+      }
 
       case "audio":
         if (msg.audio_event?.audio_base_64) {
+          audioChunkCount++;
+          const bytes = atob(msg.audio_event.audio_base_64).length;
+          console.log(
+            `[11Labs] Audio chunk #${audioChunkCount}: ${bytes} bytes`
+          );
           callbacks.onAudio?.(msg.audio_event.audio_base_64);
         }
         break;
 
       case "agent_response":
         if (msg.agent_response_event?.agent_response) {
+          console.log(
+            "[11Labs] Agent:",
+            msg.agent_response_event.agent_response
+          );
           callbacks.onAgentResponse?.(msg.agent_response_event.agent_response);
         }
         break;
 
       case "user_transcript":
         if (msg.user_transcription_event?.user_transcript) {
+          console.log(
+            "[11Labs] User:",
+            msg.user_transcription_event.user_transcript
+          );
           callbacks.onUserTranscript?.(
             msg.user_transcription_event.user_transcript
           );
         }
+        break;
+
+      case "interruption":
+        console.log("[11Labs] Interruption detected");
+        callbacks.onInterrupt?.();
         break;
 
       case "ping":
@@ -102,15 +134,23 @@ export async function connectElevenLabs(
           JSON.stringify({ type: "pong", event_id: msg.ping_event?.event_id })
         );
         break;
+
+      default:
+        console.log("[11Labs] Unknown message:", msg.type, msg);
     }
   };
 
-  websocket.onclose = () => {
+  websocket.onclose = (event) => {
+    console.log("[11Labs] WebSocket closed:", event.code, event.reason);
+    console.log(`[11Labs] Total audio chunks received: ${audioChunkCount}`);
     isInitialized = false;
     callbacks.onDisconnect?.();
   };
 
-  websocket.onerror = () => callbacks.onError?.();
+  websocket.onerror = (error) => {
+    console.error("[11Labs] WebSocket error:", error);
+    callbacks.onError?.();
+  };
 }
 
 /**
