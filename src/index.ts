@@ -11,6 +11,17 @@ type Bindings = {
 
 const app = new Hono<{ Bindings: Bindings }>();
 
+// Allow iframe embedding by removing X-Frame-Options restrictions
+app.use("*", async (c, next) => {
+  await next();
+  // Remove X-Frame-Options to allow iframe embedding
+  c.header("X-Frame-Options", "ALLOWALL");
+  // Set permissive Content Security Policy for iframe embedding
+  c.header("Content-Security-Policy", "frame-ancestors *");
+  // Allow microphone access in iframes
+  c.header("Permissions-Policy", "microphone=*");
+});
+
 app.use(renderer);
 
 // API route to get config (Anam session token + ElevenLabs agent ID)

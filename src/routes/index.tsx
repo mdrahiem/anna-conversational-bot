@@ -9,22 +9,6 @@ export const Index = (c: Context) => {
 
       {/* Main container */}
       <div class="relative min-h-screen flex flex-col items-center justify-center p-4">
-        {/* Header */}
-        <header class="absolute top-0 left-0 right-0 p-6">
-          <div class="flex items-center gap-2 text-zinc-500 text-sm">
-            <svg
-              class="w-5 h-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-            </svg>
-            <span>ElevenLabs + Anam Integration Demo</span>
-          </div>
-        </header>
-
         {/* Main card */}
         <main class="w-full max-w-lg">
           {/* Avatar video area */}
@@ -163,28 +147,6 @@ export const Index = (c: Context) => {
             <p id="error-text" class="text-red-400 text-sm" />
           </div>
         </main>
-
-        {/* Footer */}
-        <footer class="absolute bottom-0 left-0 right-0 p-6 text-center">
-          <p class="text-zinc-600 text-xs">
-            ElevenLabs Conversational AI + Anam Avatar •{" "}
-            <a
-              href="https://elevenlabs.io/docs/agents-platform/overview"
-              target="_blank"
-              class="text-zinc-500 hover:text-labs-400 transition-colors"
-            >
-              11Labs Docs
-            </a>
-            {" • "}
-            <a
-              href="https://docs.anam.ai"
-              target="_blank"
-              class="text-zinc-500 hover:text-labs-400 transition-colors"
-            >
-              Anam Docs
-            </a>
-          </p>
-        </footer>
       </div>
     </>
   );

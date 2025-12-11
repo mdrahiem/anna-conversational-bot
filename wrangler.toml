@@ -1,0 +1,9 @@
+name = "anna-conversational-bot"
+compatibility_date = "2024-12-11"
+main = "dist/index.js"
+
+# Environment variables (set these as secrets after deployment)
+[vars]
+# ANAM_API_KEY - set via: bunx wrangler secret put ANAM_API_KEY
+# ANAM_AVATAR_ID - set via: bunx wrangler secret put ANAM_AVATAR_ID
+# ELEVENLABS_AGENT_ID - set via: bunx wrangler secret put ELEVENLABS_AGENT_ID
