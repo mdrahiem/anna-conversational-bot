@@ -5,7 +5,7 @@
     "": {
       "name": "agent_11labs",
       "dependencies": {
-        "@anam-ai/js-sdk": "^4.7.0",
+        "@anam-ai/js-sdk": "4.7.0",
         "chatdio": "^1.2.1",
         "hono": "^4.10.7",
       },
